@@ -1,14 +1,14 @@
 name: TV Card
-description: 📺 TV Remote Card
+description: Apple TV Remote Card
 type: lovelace
 keywords:
   - tvcard
+  - apple
   - remote
   - tv
   - television
 author:
-  name: mar_robHD
+  name: jpn2
 license: Apache License, Version 2.0
 files:
   - tv-card.js
-  - tv-card-editor.js
