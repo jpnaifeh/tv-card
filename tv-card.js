@@ -74,7 +74,7 @@ class TVCardServices extends LitElement {
     }
 
     setConfig(config) {
-        if (!config.entity) {
+        if (!config.remote_entity) {
             console.log("Invalid configuration");
             return;
         }
