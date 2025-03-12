@@ -119,7 +119,7 @@ class TVCardServices extends LitElement {
 
         let slider_config = {
             "type": "custom:my-slider",
-            "entity": this._config.entity,
+            "entity": this._config.media_player_entity,
             "height": "50px",
             "mainSliderColor": "white",
             "secondarySliderColor": "rgb(60, 60, 60)",
@@ -149,7 +149,7 @@ class TVCardServices extends LitElement {
     }
 
     sendKey(key) {
-        let entity_id = this._config.entity;
+        let entity_id = this._config.remote_entity;
 
         let keymap = {
             "KEY_LEFT":"left",
@@ -174,7 +174,7 @@ class TVCardServices extends LitElement {
     }
 
     changeSource(source) {
-        let entity_id = this._config.entity;
+        let entity_id = this._config.media_player_entity;
 
         this._hass.callService("media_player", "select_source", {
             source: source,
