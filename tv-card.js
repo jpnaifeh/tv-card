@@ -151,10 +151,26 @@ class TVCardServices extends LitElement {
     sendKey(key) {
         let entity_id = this._config.entity;
 
+        let keymap = {
+            "KEY_LEFT":"left",
+            "KEY_RIGHT":"right",
+            "KEY_UP":"up",
+            "KEY_DOWN":"down",
+            "KEY_ENTER":"select",
+            "KEY_RETURN":"menu"
+        };
+
+        console.log("Key Received:", key);
+
+        this._hass.callService("remote", "send_command", {
+            command: keymap[key],
+        }, { entity_id: entity_id });
+/*
         this._hass.callService("media_player", "play_media", {
             media_content_id: key,
             media_content_type: "send_key",
         }, { entity_id: entity_id });
+*/
     }
 
     changeSource(source) {
