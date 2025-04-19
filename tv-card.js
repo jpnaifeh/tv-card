@@ -389,7 +389,7 @@ class TVCardServices extends LitElement {
                                 id="toucharea"
                                 @click="${this.onClick}"
                                 @dblclick="${this.onDoubleClick}"
-                                @wheel="${this.onWheel}"
+                                @onwheel="${this.onWheel}"
                                 @touchstart="${this.onTouchStart}"
                                 @touchmove="${this.onTouchMove}"
                                 @touchend="${this.onTouchEnd}">
