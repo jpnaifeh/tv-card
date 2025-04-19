@@ -31,6 +31,8 @@ const sources = {
     "youtube": {"source": "YouTube", "icon": "mdi:youtube"},
 };
 
+var deltaYSum, deltaXSum;
+
 var fireEvent = function(node, type, detail, options) {
     options = options || {};
     detail = detail === null || detail === undefined ? {} : detail;
@@ -261,6 +263,41 @@ class TVCardServices extends LitElement {
         initialY = null;
     }
 
+    onWheel(event) {
+        event.preventDefault();
+
+        deltaYSum += event.deltaY;
+        deltaXSum += event.deltaX;
+
+        if (Math.abs(deltaXSum) > Math.abs(deltaYSum)) {
+            // sliding horizontally
+            if (deltaXSum >= 100) {
+                let key = "KEY_RIGHT";
+                this.sendKey(key);
+                deltaXSum = 0;
+            };
+            if (deltaXSum <= -100) {
+                let key = "KEY_LEFT";
+                this.sendKey(key);
+                deltaXSum = 0;
+            };
+        } else {
+            // sliding vertically
+            if (deltaYSum >= 100) {
+                let key = "KEY_UP";
+                this.sendKey(key);
+                deltaYSum = 0;
+            };
+            if (deltaYSum <= -100) {
+                let key = "KEY_DOWN";
+                this.sendKey(key);
+                deltaYSum = 0;
+            };
+        }
+
+        if (this._config.enable_button_feedback === undefined || this._config.enable_button_feedback) fireEvent(window, "haptic", "selection");
+    }
+
     handleActionClick(e) {
         let action = e.currentTarget.action;
         let info = this.custom_keys[action] || this.custom_sources[action] || keys[action] || sources[action];
@@ -351,6 +388,7 @@ class TVCardServices extends LitElement {
                                 id="toucharea"
                                 @click="${this.onClick}"
                                 @dblclick="${this.onDoubleClick}"
+                                @wheel="${this.onWheel}"
                                 @touchstart="${this.onTouchStart}"
                                 @touchmove="${this.onTouchMove}"
                                 @touchend="${this.onTouchEnd}">
@@ -400,7 +438,7 @@ class TVCardServices extends LitElement {
                 toucharea {
                     border-radius: 30px;
                     flex-grow: 1;
-                    height: 250px;
+                    height: -webkit-fill-available;
                     background: #6d767e;
                     touch-action: none;
                     text-align: center;
