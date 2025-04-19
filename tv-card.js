@@ -269,7 +269,7 @@ class TVCardServices extends LitElement {
 
         deltaYSum += event.deltaY;
         deltaXSum += event.deltaX;
-        console.log(event.deltaX, event.deltaY, deltaXSum, deltaYSum);
+        console.log("deltaX:{event.deltaX}, deltaY:{event.deltaY}, deltaXSum:{deltaXSum}, deltaYSum:{deltaYSum}");
 
         if (Math.abs(deltaXSum) > Math.abs(deltaYSum)) {
             // sliding horizontally
