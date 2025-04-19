@@ -31,7 +31,8 @@ const sources = {
     "youtube": {"source": "YouTube", "icon": "mdi:youtube"},
 };
 
-var deltaYSum, deltaXSum;
+var deltaYSum = 0;
+var deltaXSum = 0;
 
 var fireEvent = function(node, type, detail, options) {
     options = options || {};
