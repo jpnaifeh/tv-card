@@ -283,7 +283,8 @@ class TVCardServices extends LitElement {
                 let key = "KEY_RIGHT";
                 this.sendKey(key);
                 deltaXSum = 0;
-                deltaYSum = 0;            }
+                deltaYSum = 0;
+            }
         } else {
             // sliding vertically
             if (deltaYSum >= 50) {
