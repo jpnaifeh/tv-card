@@ -264,6 +264,7 @@ class TVCardServices extends LitElement {
     }
 
     onWheel(event) {
+        console.log(event);
         event.preventDefault();
 
         deltaYSum += event.deltaY;
@@ -389,7 +390,7 @@ class TVCardServices extends LitElement {
                                 id="toucharea"
                                 @click="${this.onClick}"
                                 @dblclick="${this.onDoubleClick}"
-                                @onwheel="${this.onWheel}"
+                                @wheel="${this.onWheel}"
                                 @touchstart="${this.onTouchStart}"
                                 @touchmove="${this.onTouchMove}"
                                 @touchend="${this.onTouchEnd}">
