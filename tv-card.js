@@ -264,7 +264,6 @@ class TVCardServices extends LitElement {
     }
 
     onWheel(event) {
-        console.log(event);
         event.preventDefault();
 
         deltaYSum += event.deltaY;
