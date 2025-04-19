@@ -273,26 +273,26 @@ class TVCardServices extends LitElement {
 
         if (Math.abs(deltaXSum) > Math.abs(deltaYSum)) {
             // sliding horizontally
-            if (deltaXSum >= 100) {
-                let key = "KEY_RIGHT";
+            if (deltaXSum >= 50) {
+                let key = "KEY_LEFT";
                 this.sendKey(key);
                 deltaXSum = 0;
                 deltaYSum = 0;
             }
-            if (deltaXSum <= -100) {
-                let key = "KEY_LEFT";
+            if (deltaXSum <= -50) {
+                let key = "KEY_RIGHT";
                 this.sendKey(key);
                 deltaXSum = 0;
                 deltaYSum = 0;            }
         } else {
             // sliding vertically
-            if (deltaYSum >= 100) {
+            if (deltaYSum >= 50) {
                 let key = "KEY_UP";
                 this.sendKey(key);
                 deltaXSum = 0;
                 deltaYSum = 0;
             }
-            if (deltaYSum <= -100) {
+            if (deltaYSum <= -50) {
                 let key = "KEY_DOWN";
                 this.sendKey(key);
                 deltaXSum = 0;
