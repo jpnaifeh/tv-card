@@ -164,7 +164,7 @@ class TVCardServices extends LitElement {
             "KEY_ENTER":"select",
             "KEY_RETURN":"menu",
             "KEY_SKIPFWD":"skip_forward",
-            "KEY_SKIPBCK":"skip_backward"
+            "KEY_SKIPBCK":"skip_backward",
         };
 
         console.log("Key Received:", key);
@@ -273,7 +273,7 @@ class TVCardServices extends LitElement {
 
         deltaYSum += event.deltaY;
         deltaXSum += event.deltaX;
-        console.log(`deltaX:${event.deltaX}, deltaY:${event.deltaY}, deltaXSum:${deltaXSum}, deltaYSum:${deltaYSum}`);
+        //console.log(`deltaX:${event.deltaX}, deltaY:${event.deltaY}, deltaXSum:${deltaXSum}, deltaYSum:${deltaYSum}`);
 
         if (Math.abs(deltaXSum) > Math.abs(deltaYSum)) {
             // sliding horizontally
