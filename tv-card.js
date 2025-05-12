@@ -8,7 +8,7 @@ const keys = {
     "volume_up": {"key": "KEY_VOLUP", "icon": "mdi:volume-plus"},
     "volume_down": {"key": "KEY_VOLDOWN", "icon": "mdi:volume-minus"},
     "volume_mute": {"key": "KEY_MUTE", "icon": "mdi:volume-mute"},
-    "return": {"key": "KEY_RETURN", "icon": "mdi:arrow-left"},
+    "return": {"key": "KEY_RETURN", "icon": "mdi:chevron-left"},
     "source": {"key": "KEY_SOURCE", "icon": "mdi:video-input-hdmi"},
     "info": {"key": "KEY_INFO", "icon": "mdi:television-guide"},
     "home": {"key": "KEY_HOME", "icon": "mdi:home"},
