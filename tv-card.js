@@ -23,6 +23,8 @@ const keys = {
     "play": {"key": "KEY_PLAY", "icon": "mdi:play"},
     "pause": {"key": "KEY_PAUSE", "icon": "mdi:pause"},
     "fast_forward": {"key": "KEY_FF", "icon": "mdi:fast-forward"},
+    "skip_forward": {"key": "KEY_SKIPFWD", "icon": "mdi:fast-forward-10"},
+    "skip_backward": {"key": "KEY_SKIPBCK", "icon": "mdi:rewind-10"},
 };
 
 const sources = {
@@ -160,7 +162,9 @@ class TVCardServices extends LitElement {
             "KEY_UP":"up",
             "KEY_DOWN":"down",
             "KEY_ENTER":"select",
-            "KEY_RETURN":"menu"
+            "KEY_RETURN":"menu",
+            "KEY_SKIPFWD":"skip_forward",
+            "KEY_SKIPBCK":"skip_backward"
         };
 
         console.log("Key Received:", key);
