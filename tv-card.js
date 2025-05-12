@@ -444,6 +444,7 @@ class TVCardServices extends LitElement {
                 toucharea {
                     border-radius: 30px;
                     flex-grow: 1;
+                    height: 80vh;
                     background: #6d767e;
                     touch-action: none;
                     text-align: center;
@@ -452,10 +453,6 @@ class TVCardServices extends LitElement {
         `;
     }
 
-/* 
-    -webkit-fill-available; 
-    height: 80%; 
-*/
 
     applyThemesOnElement(element, themes, localTheme) {
         if (!element._themes) {
