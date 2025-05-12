@@ -444,7 +444,7 @@ class TVCardServices extends LitElement {
                 toucharea {
                     border-radius: 30px;
                     flex-grow: 1;
-                    height: stretch;
+                    height: -webkit-fill-available;
                     background: #6d767e;
                     touch-action: none;
                     text-align: center;
