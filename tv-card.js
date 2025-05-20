@@ -203,8 +203,8 @@ class TVCardServices extends LitElement {
     }
 
     onRightClick(event) {
-        event.preventDefault();
         event.stopImmediatePropagation();
+        event.preventDefault();
         let right_click_action = () => {
             this.sendKey("KEY_RETURN");
             if (this._config.enable_button_feedback === undefined || this._config.enable_button_feedback) fireEvent(window, "haptic", "light");
