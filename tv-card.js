@@ -202,6 +202,15 @@ class TVCardServices extends LitElement {
         }
     }
 
+    onRightClick(event) {
+        event.stopImmediatePropagation();
+        let right_click_action = () => {
+            this.sendKey("KEY_RETURN");
+            if (this._config.enable_button_feedback === undefined || this._config.enable_button_feedback) fireEvent(window, "haptic", "light");
+        };
+        right_click_action();
+    }
+
     onDoubleClick(event) {
         if (this._config.enable_double_click !== undefined && !this._config.enable_double_click) return;
 
@@ -398,6 +407,7 @@ class TVCardServices extends LitElement {
                                 id="toucharea"
                                 @click="${this.onClick}"
                                 @dblclick="${this.onDoubleClick}"
+                                @oncontextmenu="${this.onRightClick}"
                                 @wheel="${this.onWheel}"
                                 @touchstart="${this.onTouchStart}"
                                 @touchmove="${this.onTouchMove}"
