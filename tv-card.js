@@ -203,6 +203,7 @@ class TVCardServices extends LitElement {
     }
 
     onRightClick(event) {
+        event.preventDefault();
         event.stopImmediatePropagation();
         let right_click_action = () => {
             this.sendKey("KEY_RETURN");
