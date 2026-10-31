@@ -46,7 +46,7 @@ media_player_entity: media_player.living_room
 | `enable_double_click` | boolean | unset | Unset: every tap selects and a double tap also sends back. `true`: a double tap sends only back (single taps wait 200ms). `false`: no double tap.
 | `double_click_key` | string | `menu` | Command sent on double tap.
 | `enable_button_feedback` | boolean | `true` | Haptic feedback in the Home Assistant app.
-| `swipe_threshold` | number | `35` | Pixels of swipe per arrow key.
+| `swipe_threshold` | number | `80` | Pixels of swipe per arrow key.
 | `custom_keys` | object | | Extra buttons, see below.
 | `custom_sources` | object | | Extra app buttons, see below.
 | `custom_icons` | object | | Custom SVG icons, see below.
@@ -61,7 +61,7 @@ media_player_entity: media_player.living_room
 | Swipe, then hold | that direction, repeated
 | Double tap | `double_click_key` (see `enable_double_click`)
 | Right-click | `menu`
-| Scroll (trackpad / mouse wheel) | arrows
+| Scroll (trackpad / mouse wheel) | one arrow per scroll gesture
 
 ### Buttons
 

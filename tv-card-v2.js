@@ -27,8 +27,9 @@ const DEFAULT_HEIGHT = 360;
 const MIN_HEIGHT = 160;
 const MAX_HEIGHT = 720;
 
-const SWIPE_THRESHOLD = 35;   // px of finger travel per arrow key
-const WHEEL_THRESHOLD = 75;   // accumulated wheel delta per arrow key
+const SWIPE_THRESHOLD = 80;   // px of finger travel per arrow key
+const WHEEL_THRESHOLD = 75;   // accumulated wheel delta that sends the arrow key
+const WHEEL_GESTURE_GAP = 150; // ms without wheel events that ends a scroll gesture
 const HOLD_DELAY = 700;       // ms held still before the current key starts repeating
 const REPEAT_INTERVAL = 200;
 const TAP_MAX_DURATION = 500;
@@ -226,10 +227,16 @@ class TVCard extends LitElement {
         this._feedback();
     }
 
+    // One arrow per scroll gesture: once it is sent, the rest of the gesture
+    // (including trackpad momentum after the fingers lift) is ignored until the events pause.
     _onWheel(e) {
         e.preventDefault();
         clearTimeout(this._wheelReset);
-        this._wheelReset = setTimeout(() => (this._wheel = { x: 0, y: 0 }), 300);
+        this._wheelReset = setTimeout(() => {
+            this._wheel = { x: 0, y: 0 };
+            this._wheelLocked = false;
+        }, WHEEL_GESTURE_GAP);
+        if (this._wheelLocked) return;
 
         const wheel = this._wheel;
         wheel.x += e.deltaX;
@@ -245,7 +252,7 @@ class TVCard extends LitElement {
         }
         if (!dir) return;
 
-        this._wheel = { x: 0, y: 0 };
+        this._wheelLocked = true;
         this._sendKey(dir);
         this._feedback("selection");
     }
