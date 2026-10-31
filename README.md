@@ -1,342 +1,136 @@
-# TV Remote Card (with touchpad and haptic feedback)
+# Apple TV Remote Card (v2)
 
 [![GitHub Release][releases-shield]][releases]
-[![License][license-shield]](LICENSE.md)
-[![hacs_badge](https://img.shields.io/badge/HACS-Custom-orange.svg?style=for-the-badge)](https://github.com/custom-components/hacs)
-![Project Maintenance][maintenance-shield]
+[![License][license-shield]](LICENSE)
+[![hacs_badge](https://img.shields.io/badge/HACS-Custom-orange.svg?style=for-the-badge)](https://github.com/hacs/integration)
 [![GitHub Activity][last-commit-shield]][commits]
-[![Community Forum][forum-shield]][forum]
 
-[![Github][github]][github]
+A Lovelace card for controlling an Apple TV, styled after the Apple TV Remote in the iPhone Control Center: one dark panel with a large touchpad and round buttons underneath.
 
-📦 This repo is a fork of [tv-card](https://github.com/marrobHD/tv-card) and includes a bunch of new features and improvements, like:
+<img src="assets/screenshot-v2.png" alt="Apple TV Remote Card" width="300"/>
 
-- Fully functional touchpad for navigation (thanks to [iablon's Touchpad Card](https://github.com/iablon/HomeAssistant-Touchpad-Card)) ❤️
-- Slider for volume (thanks to [AnthonMS's Slider Card](https://github.com/AnthonMS/my-cards#slider-card)) ❤️
-- Supports [ollo69's SamsungTV Smart Component](https://github.com/ollo69/ha-samsungtv-smart)
-- Much easier setup
-- Implements haptics feedback
-- Customizable layout, you can choose the order of the rows and buttons
-- All rows and buttons are optional, you can change whatever you *(don't)* like
+- **Touchpad**: swipe to move, tap to select, hold to repeat, right-click or double-tap for back. Trackpad scrolling works too.
+- **Resizable**: drag the grip under the touchpad to change its height (remembered per device), double-click it to reset.
+- **Now playing**: shows the Apple TV's name and what's playing when a media player is set.
+- **Visual editor** and haptic feedback in the Home Assistant app.
 
-## Demo
-
-<img src="assets/screenshot.png" alt="ex" width="300"/>
-
-## Options
-
-| Name | Type | Requirement | Description
-| ---- | ---- | ------- | -----------
-| type | string | **Required** | `custom:tv-card`
-| entity | string | **Required** | The `media_player` entity to control
-| title | string | **Optional** | Card title for showing as header
-| enable_double_click | boolean | **Optional** | Whether a double click on the touchpad should send the key in `double_click_keycode`. Defaults to `true`.
-| double_click_keycode | string | **Optional** | The key for double clicks on the touchpad. Defaults to `KEY_RETURN`
-| enable_button_feedback | boolean | **Optional** | Shall clicks on the buttons return a vibration feedback? Defaults to `true`.
-| enable_slider_feedback | boolean | **Optional** | Shall the volume slider return a vibration feedback when you slide through it? Defaults to `true`.
-| slider_config | object | **Optional** | Custom configuration for the volume slider. See [slider-card](https://github.com/AnthonMS/my-cards)
-| custom_keys | object | **Optional** | Custom keys for the remote control. Each item is an object that should have `icon` and at least one of the following properties: `key`, `source`, `service`.
-| custom_sources | object | **Optional** | Custom sources for the remote control. Same object as above, but letting you split keys and sources.
-
-Using only these options you will get an empty card (or almost empty, if you set a title).
-In order to include the buttons, you need to specify in the config the rows you want and which buttons you want in it.
-You do it by declaring the rows as arrays and its buttons as values, like this:
-
-```yaml
-power_row:
-  - power
-media_control_row:
-  - rewind
-  - play
-  - pause
-  - fast_forward
-```
-
-The available rows are `power_row`, `channel_row`, `apps_row`, `source_row` and `media_control_row`
-There also `volume_row` and `navigation_row`, but these requires a string as value.
-
-| Name | Type | Description
-| ---- | ---- | -------
-| volume_row | string | Can be either `slider` or `buttons`. This defines the mode you want for setting the volume (you'll see them soon below). You need to have [slider-card](https://github.com/AnthonMS/my-cards) installed in order to use `slider`.
-| navigation_row | string | Can be either `touchpad` or `buttons`. This defines the mode you want for navigating around your tv (you'll also see them soon below).
-
-## **Notice**
-
-This card uses `media_player.play_media` to send keys to the TV.
-This is the way [ollo69's SamsungTV Smart Component](https://github.com/ollo69/ha-samsungtv-smart) (which i based this card on) works, but don't worry: if your TV is from another brand or simply the TV integration does not use `media_player.play_media` for sending keys, you can still use this card by setting [custom buttons](#custom-buttons) with services to send keys to your TV (or do whatever you want) in your way (just like the original [tv-card](https://github.com/marrobHD/tv-card)).
-
-## Custom buttons
-
-If you want to add custom buttons to the remote control (of if you want to reconfigure the existing buttons), you can do it by adding an object to the `custom_keys` option:
-
-```yaml
-custom_keys:
-  input_tv:
-    icon: mdi:television-box
-    key: KEY_TV
-  browser:
-    icon: mdi:web
-    source: browser
-  toggle_light:
-    icon: mdi:lightbulb
-    service: light.toggle
-    service_data:
-      entity_id: light.bedroom
-```
-
-The `custom_sources` exists for the same purpose, but you can use it to split the keys and sources.
-
-```yaml
-custom_keys:
-  input_tv:
-    icon: mdi:television-box
-    key: KEY_TV
-  toggle_light:
-    icon: mdi:lightbulb
-    service: light.toggle
-    service_data:
-      entity_id: light.bedroom
-custom_sources:
-  browser:
-    icon: mdi:web
-    source: browser
-```
-
-Then you can easily use these buttons in your card:
-
-```yaml
-power_row:
-  - browser
-  - power
-  - input_tv
-media_control_row:
-  - rewind
-  - play
-  - pause
-  - fast_forward
-  - toggle_light
-```
-
-<img src="assets/custom_keys.png" alt="guide" width="300"/>
-
-With custom buttons you can override existing buttons for changing its icon or even its functionality. Here i do both:
-
-```yaml
-custom_keys:
-  power:
-    icon: mdi:power-cycle
-    service: media_player.toggle
-    service_data:
-      entity_id: media_player.tv
-```
-
-Inside each button you may define `icon` and either `key`, `source` or `service`, as you've seen.
-
-| Option | internal function | Description
-| ---- | ---- | -------
-| icon |  | The icon to show in the button. If empty, the button will be blank.
-| key | `media_player.play_media(media_content_id=key, media_content_type="send_key")` | The key to send to the TV via `media_player.play_media`
-| source | `media_player.select_source(source=source)` | The source to switch to via `media_player.select_source`
-| service | `_hass.callService(domain, service, service_data)` | A string representing service to call. Use the format `domain.service`, e.g. `"light.turn_on"`
-| service_data | passed with `service` | The data to pass to the service. May be an object depending on the service you are using.
-
-## Custom icons
-
-You can customize any icon with a custom svg path using the `custom_icons` option.
-
-Usage:
-
-```yaml
-custom_icons:
-  <button>: <svg_path>
-```
-
-Example:
-
-```yaml
-custom_icons:
-  hbo: >-
-    M7.042 16.896H4.414v-3.754H2.708v3.754H.01L0
-    7.22h2.708v3.6h1.706v-3.6h2.628zm12.043.046C21.795 16.94 24 14.689 24
-    11.978a4.89 4.89 0 0 0-4.915-4.92c-2.707-.002-4.09 1.991-4.432
-    2.795.003-1.207-1.187-2.632-2.58-2.634H7.59v9.674l4.181.001c1.686 0
-    2.886-1.46 2.888-2.713.385.788 1.72 2.762 4.427 2.76zm-7.665-3.936c.387 0
-    .692.382.692.817 0 .435-.305.817-.692.817h-1.33v-1.634zm.005-3.633c.387 0
-    .692.382.692.817 0 .436-.305.818-.692.818h-1.33V9.373zm1.77
-    2.607c.305-.039.813-.387.992-.61-.063.276-.068 1.074.006
-    1.35-.204-.314-.688-.701-.998-.74zm3.43 0a2.462 2.462 0 1 1 4.924 0 2.462
-    2.462 0 0 1-4.925 0zm2.462 1.936a1.936 1.936 0 1 0 0-3.872 1.936 1.936 0 0 0
-    0 3.872Z
-```
-
-The svg path was copied from [SimpleIcon](https://simpleicons.org/?q=hbo). Although you can use [this integration](https://github.com/vigonotion/hass-simpleicons) for using icons from SimpleIcons (there's also one for [fontawesome](https://github.com/thomasloven/hass-fontawesome)).
-
-Having defined the custom icon, you can use it on any custom button:
-
-```yaml
-custom_sources:
-  hbomax:
-    icon: hbo
-    source: HBO Max
-```
+Works with Home Assistant's [Apple TV integration](https://www.home-assistant.io/integrations/apple_tv/).
 
 ## Installation
 
-### Step 1
+### HACS
 
-Install using HACS or [see this guide](https://github.com/thomasloven/hass-config/wiki/Lovelace-Plugins).
+1. In HACS, add `https://github.com/jpnaifeh/tv-card` as a custom repository of type **Dashboard**.
+2. Install **Apple TV Remote Card** and reload the browser.
 
-### Step 2
+### Manual
 
-Add a custom element in your `ui-lovelace.yaml`
+1. Copy `tv-card-v2.js` to `config/www/tv-card-v2/`.
+2. Add `/local/tv-card-v2/tv-card-v2.js` as a dashboard resource of type **JavaScript module**.
+
+## Configuration
 
 ```yaml
-      - type: custom:tv-card
-        entity: media_player.tv
-        power_row:
-          - power
-        channel_row:
-          - channel_up
-          - info
-          - channel_down
-        apps_row:
-          - netflix
-          - youtube
-          - spotify
-        volume_row: slider
-        navigation_row: touchpad
-        source_row:
-          - return
-          - home
-          - source
-        media_control_row:
-          - rewind
-          - play
-          - pause
-          - fast_forward
+type: custom:tv-card-v2
+remote_entity: remote.living_room
+media_player_entity: media_player.living_room
 ```
 
-### Example 1
+| Name | Type | Default | Description
+| ---- | ---- | ------- | -----------
+| `remote_entity` | string | **Required** | The Apple TV `remote` entity that receives key presses.
+| `media_player_entity` | string | | The Apple TV `media_player` entity, used for the header and app buttons.
+| `title` | string | media player name | Header text. Set to `""` to hide the name (now playing still shows).
+| `touchpad_height` | number | `360` | Touchpad height in px (160–720). Changing it resets any size dragged on a device.
+| `buttons` | list | `[skip_backward, menu, skip_forward]` | Buttons below the touchpad, in order.
+| `enable_double_click` | boolean | unset | Unset: every tap selects and a double tap also sends back. `true`: a double tap sends only back (single taps wait 200ms). `false`: no double tap.
+| `double_click_key` | string | `menu` | Command sent on double tap.
+| `enable_button_feedback` | boolean | `true` | Haptic feedback in the Home Assistant app.
+| `swipe_threshold` | number | `35` | Pixels of swipe per arrow key.
+| `custom_keys` | object | | Extra buttons, see below.
+| `custom_sources` | object | | Extra app buttons, see below.
+| `custom_icons` | object | | Custom SVG icons, see below.
 
-Playing with order, moving and repeating buttons:
+### Touchpad
+
+| Gesture | Sends
+| ------- | -----
+| Swipe | `up` / `down` / `left` / `right`, one per `swipe_threshold` px
+| Tap | `select`
+| Hold still | `select`, repeated every 200ms after 700ms
+| Swipe, then hold | that direction, repeated
+| Double tap | `double_click_key` (see `enable_double_click`)
+| Right-click | `menu`
+| Scroll (trackpad / mouse wheel) | arrows
+
+### Buttons
+
+Built-in buttons are the Apple TV remote commands `up`, `down`, `left`, `right`, `select`, `menu`, `skip_backward` and `skip_forward`, plus the apps `netflix`, `spotify` and `youtube` (these need `media_player_entity`).
+
+`custom_keys` and `custom_sources` add buttons you can list in `buttons`. Each needs an `icon` and one of:
+
+- `key`: a command for `remote.send_command` on the Apple TV
+- `source`: an app name for `media_player.select_source`
+- `service` (and optional `service_data`): any Home Assistant service
 
 ```yaml
-type: custom:tv-card
-entity: media_player.tv
-title: Example 1
-power_row:
-  - power
-source_row:
-  - return
+type: custom:tv-card-v2
+remote_entity: remote.living_room
+media_player_entity: media_player.living_room
+buttons:
+  - menu
   - home
-  - source
-  - netflix
-apps_row:
-  - youtube
-  - spotify
-  - netflix
-navigation_row: touchpad
-volume_row: slider
-channel_row:
-  - channel_up
-  - channel_down
-  - info
-media_control_row:
-  - rewind
-  - play
-  - spotify
-  - pause
-  - fast_forward
+  - play_pause
+  - disney
+custom_keys:
+  home:
+    key: home
+    icon: mdi:television
+  play_pause:
+    key: play_pause
+    icon: mdi:play-pause
+custom_sources:
+  disney:
+    source: Disney+
+    icon: mdi:alpha-d-circle
 ```
 
-Result:
-
-<img src="assets/disorder.png" alt="disorder example" width="300"/>
-
-### Example 2
-
-Buttons, buttons everywhere!
+`custom_icons` maps an icon name to an SVG path, for icons that aren't in MDI:
 
 ```yaml
-type: custom:tv-card
-entity: media_player.tv
-title: Example 2
-power_row:
-  - power
-channel_row:
-  - channel_up
-  - info
-  - channel_down
-apps_row:
-  - netflix
-  - youtube
-  - spotify
-volume_row: buttons
-navigation_row: buttons
-source_row:
-  - return
-  - home
-  - source
-media_control_row:
-  - rewind
-  - play
-  - pause
-  - fast_forward
+custom_keys:
+  tv:
+    key: home
+    icon: appletv
+custom_icons:
+  appletv: "M12 2a10 10 0 1 0 0 20a10 10 0 1 0 0-20z"
 ```
 
-Result:
+### Styling
 
-<img src="assets/buttons_everywhere.png" alt="buttons example" width="300"/>
+The card is always dark, like the iPhone remote. Override these CSS variables (for example with [card-mod](https://github.com/thomasloven/lovelace-card-mod) or a theme) to change it:
 
-### Example 3
+`--tv-card-background`, `--tv-card-surface`, `--tv-card-surface-active`, `--tv-card-icon-color`, `--tv-card-secondary-text-color`, `--tv-card-border-radius`
 
-Using less
+## Upgrading from v1
 
-```yaml
-type: custom:tv-card
-entity: media_player.tv
-title: Example 3
-power_row:
-  - power
-apps_row:
-  - netflix
-  - youtube
-  - spotify
-volume_row: slider
-navigation_row: touchpad
-source_row:
-  - return
-  - home
-```
+v2 is a new card with a new name and config, so it doesn't replace existing `custom:tv-card` cards automatically.
 
-Result:
+- Change `type: custom:tv-card` to `type: custom:tv-card-v2`.
+- Replace `entity` with `remote_entity` (and optionally `media_player_entity`).
+- The row options (`power_row`, `navigation_row`, `volume_row`, …) are replaced by the touchpad and `buttons`.
+- The volume slider is gone, so [slider-card](https://github.com/AnthonMS/my-cards) is no longer needed.
+- `key` values in `custom_keys` are now Apple TV commands (`menu`), not `KEY_*` codes (`KEY_RETURN`).
+- If you added the resource manually, point it at `tv-card-v2.js`.
 
-<img src="assets/using_less.png" alt="less example" width="300"/>
+v1 is still available in the git history.
 
-### Extra
+## Credits
 
-In any row, if you add an ampty item, there will be an empty/invisible button filling the space:
+Based on [usernein's tv-card](https://github.com/usernein/tv-card), a fork of [marrobHD's tv-card](https://github.com/marrobHD/tv-card), with the touchpad originally from [iablon's Touchpad Card](https://github.com/iablon/HomeAssistant-Touchpad-Card).
 
-```yaml
-source_row:
-  - return
-  - home
-  - source
-media_control_row:
-  - rewind
-  -
-  - 
-  - fast-forward
-```
-
-<img src="assets/empty_buttons.png" alt="empty buttons example" width="300"/>
-
-[last-commit-shield]: https://img.shields.io/github/last-commit/usernein/tv-card?style=for-the-badge
-[commits]: https://github.com/usernein/tv-card/commits/master
-[forum-shield]: https://img.shields.io/badge/community-forum-brightgreen.svg?style=for-the-badge
-[forum]: https://community.home-assistant.io/t/lovelace-an-awesome-modified-tv-card-with-touchpad-and-haptic-feedback/432791
-[license-shield]: https://img.shields.io/github/license/usernein/tv-card.svg?style=for-the-badge
-[maintenance-shield]: https://img.shields.io/badge/maintainer-usernein-blue.svg?style=for-the-badge
-[releases-shield]: https://img.shields.io/github/release/usernein/tv-card.svg?style=for-the-badge
-[releases]: https://github.com/usernein/tv-card/releases
-[github]: https://img.shields.io/github/followers/usernein.svg?style=social
+[last-commit-shield]: https://img.shields.io/github/last-commit/jpnaifeh/tv-card?style=for-the-badge
+[commits]: https://github.com/jpnaifeh/tv-card/commits/master
+[license-shield]: https://img.shields.io/github/license/jpnaifeh/tv-card.svg?style=for-the-badge
+[releases-shield]: https://img.shields.io/github/release/jpnaifeh/tv-card.svg?style=for-the-badge
+[releases]: https://github.com/jpnaifeh/tv-card/releases

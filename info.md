@@ -1,39 +1,13 @@
+# Apple TV Remote Card (v2)
 
-# TV Remote Card
+A touchpad remote for the Apple TV, styled after the Apple TV Remote in the iPhone Control Center.
 
-**Sample overview:**
-
-<img src="https://github.com/usernein/tv-card/blob/master/assets/screenshot.png" alt="screenshot" width="300"/>
-
-Add this to your lovelace configuration if your tv is a Samsung Smart TV:
+<img src="https://raw.githubusercontent.com/jpnaifeh/tv-card/master/assets/screenshot-v2.png" alt="screenshot" width="300"/>
 
 ```yaml
-type: custom:tv-card
-entity: media_player.tv
-title: Example 2
-power_row:
-  - power
-channel_row:
-  - channel_up
-  - info
-  - channel_down
-apps_row:
-  - netflix
-  - youtube
-  - spotify
-volume_row: slider
-navigation_row: touchpad
-source_row:
-  - return
-  - home
-  - source
-media_control_row:
-  - rewind
-  - play
-  - pause
-  - fast_forward
+type: custom:tv-card-v2
+remote_entity: remote.living_room
+media_player_entity: media_player.living_room
 ```
 
-If you're not using Samsung, you may want to set custom buttons for your tv. [Check it out](https://github.com/usernein/tv-card/blob/master/README.md#notice).
-
-Look at [README](https://github.com/usernein/tv-card/blob/master/README.md) for more information
+**Upgrading from v1?** v2 uses a new card type (`custom:tv-card-v2`) and config. See the [README](https://github.com/jpnaifeh/tv-card/blob/master/README.md#upgrading-from-v1) for details.
