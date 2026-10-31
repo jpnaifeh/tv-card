@@ -1,5 +1,6 @@
 {
   "name": "Apple TV Remote Card",
+  "filename": "tv-card-v2.js",
   "content_in_root": true,
   "homeassistant": "2022.4.0"
 }
