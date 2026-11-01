@@ -11,9 +11,15 @@ const KEYS = {
     "right": {"icon": "mdi:chevron-right"},
     "select": {"icon": "mdi:circle-outline"},
     "menu": {"icon": "mdi:chevron-left"},
+    "home": {"icon": "mdi:television"},
+    "play_pause": {"icon": "mdi:play-pause"},
     "skip_backward": {"icon": "mdi:rewind-10"},
     "skip_forward": {"icon": "mdi:fast-forward-10"},
 };
+
+// States in which the skip buttons appear on the touchpad.
+const PLAYING_STATES = ["playing", "paused"];
+const OFF_STATES = ["off", "standby"];
 
 const SOURCES = {
     "netflix": {"source": "Netflix", "icon": "mdi:netflix"},
@@ -21,7 +27,8 @@ const SOURCES = {
     "youtube": {"source": "YouTube", "icon": "mdi:youtube"},
 };
 
-const DEFAULT_BUTTONS = ["skip_backward", "menu", "skip_forward"];
+const DEFAULT_BUTTONS = ["play_pause", "menu", "home"];
+const DEFAULT_HEADER_RIGHT = "power";
 
 const DEFAULT_HEIGHT = 360;
 const MIN_HEIGHT = 160;
@@ -31,7 +38,7 @@ const SWIPE_THRESHOLD = 80;   // px of finger travel per arrow key
 const WHEEL_THRESHOLD = 75;   // accumulated wheel delta that sends the arrow key
 const WHEEL_GESTURE_GAP = 150; // ms without wheel events that ends a scroll gesture
 const HOLD_DELAY = 700;       // ms held still before the current key starts repeating
-const REPEAT_INTERVAL = 200;
+const REPEAT_INTERVAL = 400;  // ms between repeats, overridable with repeat_interval
 const TAP_MAX_DURATION = 500;
 const DOUBLE_TAP_DELAY = 200;    // how long a single tap waits when enable_double_click is true
 const DOUBLE_TAP_WINDOW = 400;   // max gap between the taps of a double tap
@@ -72,7 +79,7 @@ class TVCard extends LitElement {
     }
 
     getCardSize() {
-        return Math.ceil((this._height + 160) / 50);
+        return Math.ceil((this._height + 300) / 50);
     }
 
     setConfig(config) {
@@ -97,34 +104,64 @@ class TVCard extends LitElement {
         if (this._config.enable_button_feedback !== false) fireEvent(window, "haptic", type);
     }
 
-    _sendKey(command) {
-        this._hass.callService("remote", "send_command", { command }, { entity_id: this._config.remote_entity });
+    _sendKey(command, entity = this._config.remote_entity) {
+        this._hass.callService("remote", "send_command", { command }, { entity_id: entity });
     }
 
-    _selectSource(source) {
-        this._hass.callService("media_player", "select_source", { source }, { entity_id: this._config.media_player_entity });
+    _selectSource(source, entity = this._config.media_player_entity) {
+        this._hass.callService("media_player", "select_source", { source }, { entity_id: entity });
     }
 
-    _resolve(name) {
-        const custom_keys = this._config.custom_keys || {};
-        const custom_sources = this._config.custom_sources || {};
-        if (custom_keys[name]) return custom_keys[name];
-        if (custom_sources[name]) return custom_sources[name];
+    _player() {
+        return this._config.media_player_entity && this._hass.states[this._config.media_player_entity];
+    }
+
+    _builtin(name) {
         if (KEYS[name]) return { key: name, ...KEYS[name] };
+        if (name === "power") return { power: true, icon: "mdi:power" };
         return SOURCES[name];
+    }
+
+    // A custom_keys/custom_sources entry with its own action replaces the built-in button;
+    // one without (e.g. only `entity` or `icon`) just overrides those fields of the built-in.
+    _resolve(name) {
+        const custom = (this._config.custom_keys || {})[name] || (this._config.custom_sources || {})[name];
+        const builtin = this._builtin(name);
+        if (!custom) return builtin;
+        if (["key", "source", "service"].some((action) => action in custom)) {
+            return { icon: builtin && builtin.icon, ...custom };
+        }
+        return builtin && { ...builtin, ...custom };
+    }
+
+    // The remote entity's turn_off only disconnects HA, so power defaults to the media player.
+    _powerEntity(info) {
+        return info.entity || this._config.media_player_entity;
+    }
+
+    _showMoreInfo() {
+        const entityId = this._config.media_player_entity || this._config.remote_entity;
+        this.dispatchEvent(new CustomEvent("hass-more-info", {
+            detail: { entityId },
+            bubbles: true,
+            composed: true,
+        }));
     }
 
     _runAction(name) {
         const info = this._resolve(name);
         if (!info) return;
 
+        // A button's own `entity` takes the place of the card's remote/media player.
         if (info.key) {
-            this._sendKey(info.key);
+            this._sendKey(info.key, info.entity);
         } else if (info.source) {
-            this._selectSource(info.source);
+            this._selectSource(info.source, info.entity);
+        } else if (info.power) {
+            this._hass.callService("homeassistant", "toggle", {}, { entity_id: this._powerEntity(info) });
         } else if (info.service) {
             const [domain, service] = info.service.split(".", 2);
-            this._hass.callService(domain, service, info.service_data);
+            this._hass.callService(domain, service, info.service_data, info.entity ? { entity_id: info.entity } : undefined);
         }
         this._feedback();
     }
@@ -170,7 +207,7 @@ class TVCard extends LitElement {
                 if (!this._drag) return;
                 this._sendKey(this._drag.key);
                 this._feedback(this._drag.key === "select" ? "light" : "selection");
-            }, REPEAT_INTERVAL);
+            }, this._config.repeat_interval || REPEAT_INTERVAL);
         }, HOLD_DELAY);
     }
 
@@ -314,25 +351,38 @@ class TVCard extends LitElement {
 
     // ---- rendering ----
 
-    _renderButton(name) {
-        const info = this._resolve(name);
-        if (!info) return html``;
+    _renderIcon(info) {
         const svg_path = (this._config.custom_icons || {})[info.icon];
+        return svg_path
+            ? html`<ha-svg-icon .path="${svg_path}"></ha-svg-icon>`
+            : html`<ha-icon .icon="${info.icon}"></ha-icon>`;
+    }
+
+    _renderButton(name, class_name = "button") {
+        const info = this._resolve(name);
+        if (!info || (info.power && !this._powerEntity(info))) return html`<div></div>`;
+        const power_state = info.power && this._hass.states[this._powerEntity(info)];
+        const off = power_state && OFF_STATES.includes(power_state.state);
 
         return html`
-            <button class="button" title="${name}" aria-label="${name}" @click="${() => this._runAction(name)}">
-                ${svg_path
-                    ? html`<ha-svg-icon .path="${svg_path}"></ha-svg-icon>`
-                    : html`<ha-icon .icon="${info.icon}"></ha-icon>`}
+            <button
+                class="${class_name}${off ? " off" : ""}"
+                title="${name}"
+                aria-label="${name}"
+                @pointerdown="${(e) => e.stopPropagation()}"
+                @click="${() => this._runAction(name)}">
+                ${this._renderIcon(info)}
             </button>
         `;
     }
 
     _renderHeader() {
-        const player = this._config.media_player_entity && this._hass.states[this._config.media_player_entity];
+        const player = this._player();
         const title = this._config.title !== undefined
             ? this._config.title
-            : (player ? player.attributes.friendly_name : "");
+            : (player ? player.attributes.friendly_name : "Apple TV");
+        const left = this._config.header_left;
+        const right = this._config.header_right || DEFAULT_HEADER_RIGHT;
 
         let now_playing = "";
         if (player && ["playing", "paused"].includes(player.state)) {
@@ -340,11 +390,29 @@ class TVCard extends LitElement {
             now_playing = [attrs.media_title, attrs.media_artist || attrs.app_name].filter(Boolean).join(" · ");
         }
 
-        if (!title && !now_playing) return html``;
         return html`
             <div class="header">
-                ${title ? html`<div class="title">${title}</div>` : ""}
-                ${now_playing ? html`<div class="subtitle">${now_playing}</div>` : ""}
+                ${left && left !== "none" ? this._renderButton(left, "button small") : html`<div></div>`}
+                <button class="pill" @click="${this._showMoreInfo}">
+                    <span class="badge"><ha-icon .icon="${"mdi:television-play"}"></ha-icon></span>
+                    <span class="title">${title}</span>
+                    <ha-icon class="chevron" .icon="${"mdi:chevron-right"}"></ha-icon>
+                </button>
+                ${right !== "none" ? this._renderButton(right, "button small") : html`<div></div>`}
+            </div>
+            ${now_playing ? html`<div class="subtitle">${now_playing}</div>` : ""}
+        `;
+    }
+
+    // Skip back/forward sit inside the touchpad and only appear while something is playing.
+    _renderPadControls() {
+        const player = this._player();
+        const visible = !this._config.media_player_entity || (player && PLAYING_STATES.includes(player.state));
+
+        return html`
+            <div class="pad-controls ${visible ? "" : "hidden"}">
+                ${this._renderButton("skip_backward", "pad-button")}
+                ${this._renderButton("skip_forward", "pad-button")}
             </div>
         `;
     }
@@ -369,6 +437,7 @@ class TVCard extends LitElement {
                     @contextmenu="${this._onContextMenu}"
                     @wheel="${this._onWheel}">
                     <div class="dot"></div>
+                    ${this._renderPadControls()}
                 </div>
                 <div
                     class="grip"
@@ -380,7 +449,15 @@ class TVCard extends LitElement {
                     @dblclick="${this._onGripReset}">
                     <span></span>
                 </div>
-                ${buttons.length ? html`<div class="buttons">${buttons.map((name) => this._renderButton(name))}</div>` : ""}
+                ${buttons.length ? html`
+                    <div class="buttons">
+                        ${buttons.map((name, i) => this._renderButton(
+                            name,
+                            // With three buttons the middle one is the large one, as in the iPhone remote.
+                            buttons.length === 3 && i === 1 ? "button large" : "button"
+                        ))}
+                    </div>
+                ` : ""}
             </ha-card>
         `;
     }
@@ -389,35 +466,81 @@ class TVCard extends LitElement {
         return html`
             <style>
                 :host {
-                    --tv-background: var(--tv-card-background, #1c1c1e);
-                    --tv-surface: var(--tv-card-surface, #3a3a3c);
-                    --tv-surface-active: var(--tv-card-surface-active, #545456);
+                    --tv-background: var(--tv-card-background, #000000);
+                    --tv-surface: var(--tv-card-surface, #1c1c1e);
+                    --tv-surface-active: var(--tv-card-surface-active, #3a3a3c);
+                    --tv-edge: var(--tv-card-edge-color, rgba(255, 255, 255, 0.12));
                     --tv-icon: var(--tv-card-icon-color, #f2f2f7);
-                    --tv-secondary-text: var(--tv-card-secondary-text-color, #98989d);
+                    --tv-secondary-text: var(--tv-card-secondary-text-color, #8e8e93);
                 }
                 ha-card {
                     display: flex;
                     flex-direction: column;
-                    padding: 20px 20px 24px;
+                    padding: 20px 20px 28px;
                     background: var(--tv-background);
                     color: var(--tv-icon);
                     border: none;
                     border-radius: var(--tv-card-border-radius, 32px);
                     overflow: hidden;
-                }
-                .header {
-                    padding: 0 8px 16px;
-                    text-align: center;
                     font-family: -apple-system, BlinkMacSystemFont, var(--paper-font-body1_-_font-family, sans-serif);
                 }
+                /* Raised "glass" edge shared by the header, buttons and touchpad. */
+                .pill,
+                .button,
+                .touchpad {
+                    background: var(--tv-surface);
+                    border: 1px solid var(--tv-edge);
+                    box-shadow: inset 0 1px 1px rgba(255, 255, 255, 0.06), 0 2px 8px rgba(0, 0, 0, 0.6);
+                }
+                .header {
+                    display: grid;
+                    grid-template-columns: 56px 1fr 56px;
+                    align-items: center;
+                    gap: 14px;
+                }
+                .pill {
+                    display: flex;
+                    align-items: center;
+                    justify-content: center;
+                    gap: 10px;
+                    min-width: 0;
+                    height: 56px;
+                    padding: 0 18px;
+                    border-radius: 28px;
+                    color: var(--tv-icon);
+                    font: inherit;
+                    cursor: pointer;
+                    -webkit-tap-highlight-color: transparent;
+                }
+                .badge {
+                    display: flex;
+                    flex: none;
+                    align-items: center;
+                    justify-content: center;
+                    width: 26px;
+                    height: 26px;
+                    border-radius: 6px;
+                    background: #ffffff;
+                    color: #000000;
+                    --mdc-icon-size: 18px;
+                }
                 .title {
-                    font-size: 17px;
+                    overflow: hidden;
+                    font-size: 20px;
                     font-weight: 600;
                     letter-spacing: -0.01em;
+                    white-space: nowrap;
+                    text-overflow: ellipsis;
+                }
+                .chevron {
+                    flex: none;
+                    color: var(--tv-secondary-text);
+                    --mdc-icon-size: 22px;
                 }
                 .subtitle {
-                    margin-top: 2px;
+                    margin-top: 10px;
                     font-size: 13px;
+                    text-align: center;
                     color: var(--tv-secondary-text);
                     white-space: nowrap;
                     overflow: hidden;
@@ -425,8 +548,8 @@ class TVCard extends LitElement {
                 }
                 .touchpad {
                     position: relative;
-                    border-radius: 24px;
-                    background: var(--tv-surface);
+                    margin-top: 24px;
+                    border-radius: 36px;
                     overflow: hidden;
                     cursor: pointer;
                     touch-action: none;
@@ -443,7 +566,7 @@ class TVCard extends LitElement {
                     height: 80px;
                     margin: -40px 0 0 -40px;
                     border-radius: 50%;
-                    background: radial-gradient(circle, rgba(255, 255, 255, 0.28), rgba(255, 255, 255, 0) 70%);
+                    background: radial-gradient(circle, rgba(255, 255, 255, 0.22), rgba(255, 255, 255, 0) 70%);
                     opacity: 0;
                     transition: opacity 0.25s;
                     pointer-events: none;
@@ -452,32 +575,21 @@ class TVCard extends LitElement {
                     opacity: 1;
                     transition: opacity 0.05s;
                 }
-                .grip {
+                .pad-controls {
+                    position: absolute;
+                    left: 6%;
+                    right: 6%;
+                    bottom: 16px;
                     display: flex;
-                    justify-content: center;
-                    padding: 9px 0;
-                    cursor: ns-resize;
-                    touch-action: none;
+                    justify-content: space-between;
+                    transition: opacity 0.25s;
                 }
-                .grip span {
-                    width: 36px;
-                    height: 5px;
-                    border-radius: 3px;
-                    background: var(--tv-surface);
-                    transition: background 0.15s;
+                .pad-controls.hidden {
+                    opacity: 0;
+                    visibility: hidden;
+                    transition: opacity 0.25s, visibility 0s 0.25s;
                 }
-                .grip:hover span,
-                .grip:active span {
-                    background: var(--tv-surface-active);
-                }
-                .buttons {
-                    display: flex;
-                    flex-wrap: wrap;
-                    justify-content: space-evenly;
-                    gap: 12px;
-                    padding-top: 2px;
-                }
-                .button {
+                .pad-button {
                     display: flex;
                     align-items: center;
                     justify-content: center;
@@ -486,18 +598,78 @@ class TVCard extends LitElement {
                     padding: 0;
                     border: none;
                     border-radius: 50%;
-                    background: var(--tv-surface);
+                    background: none;
                     color: var(--tv-icon);
                     cursor: pointer;
-                    --mdc-icon-size: 28px;
+                    --mdc-icon-size: 40px;
                     -webkit-tap-highlight-color: transparent;
                     transition: background 0.15s, transform 0.1s;
                 }
-                .button:active {
+                .pad-button:active {
                     background: var(--tv-surface-active);
                     transform: scale(0.94);
                 }
-                .button:focus-visible {
+                .grip {
+                    display: flex;
+                    justify-content: center;
+                    padding: 10px 0 14px;
+                    cursor: ns-resize;
+                    touch-action: none;
+                }
+                .grip span {
+                    width: 36px;
+                    height: 5px;
+                    border-radius: 3px;
+                    background: var(--tv-surface-active);
+                    opacity: 0.6;
+                    transition: opacity 0.15s;
+                }
+                .grip:hover span,
+                .grip:active span {
+                    opacity: 1;
+                }
+                .buttons {
+                    display: flex;
+                    flex-wrap: wrap;
+                    align-items: center;
+                    justify-content: space-between;
+                    row-gap: 16px;
+                }
+                .buttons:has(> :nth-child(4)) {
+                    justify-content: space-evenly;
+                }
+                .button {
+                    display: flex;
+                    align-items: center;
+                    justify-content: center;
+                    width: min(128px, 28%);
+                    aspect-ratio: 1;
+                    padding: 0;
+                    border-radius: 50%;
+                    color: var(--tv-icon);
+                    cursor: pointer;
+                    --mdc-icon-size: 40px;
+                    -webkit-tap-highlight-color: transparent;
+                    transition: background 0.15s, transform 0.1s;
+                }
+                .button.large {
+                    width: min(160px, 36%);
+                    --mdc-icon-size: 52px;
+                }
+                .button.small {
+                    width: 56px;
+                    --mdc-icon-size: 28px;
+                }
+                .button.off {
+                    color: var(--tv-secondary-text);
+                }
+                .button:active {
+                    background: var(--tv-surface-active);
+                    transform: scale(0.95);
+                }
+                .button:focus-visible,
+                .pill:focus-visible,
+                .pad-button:focus-visible {
                     outline: 2px solid var(--tv-icon);
                     outline-offset: 2px;
                 }
@@ -519,8 +691,11 @@ if (!customElements.get("tv-card-v2")) {
 // ---- visual editor ----
 
 const BUTTON_OPTIONS = [
-    { value: "skip_backward", label: "Skip back 10s" },
+    { value: "play_pause", label: "Play / pause" },
     { value: "menu", label: "Back" },
+    { value: "home", label: "Home (TV)" },
+    { value: "power", label: "Power" },
+    { value: "skip_backward", label: "Skip back 10s" },
     { value: "skip_forward", label: "Skip forward 10s" },
     { value: "select", label: "Select" },
     { value: "up", label: "Up" },
@@ -532,6 +707,8 @@ const BUTTON_OPTIONS = [
     { value: "youtube", label: "YouTube" },
 ];
 
+const HEADER_OPTIONS = [{ value: "none", label: "None" }, ...BUTTON_OPTIONS];
+
 const SCHEMA = [
     { name: "remote_entity", required: true, selector: { entity: { domain: "remote" } } },
     { name: "media_player_entity", selector: { entity: { domain: "media_player" } } },
@@ -541,8 +718,20 @@ const SCHEMA = [
         selector: { number: { min: 160, max: 720, step: 10, mode: "slider", unit_of_measurement: "px" } },
     },
     {
+        name: "repeat_interval",
+        selector: { number: { min: 100, max: 1500, step: 50, mode: "slider", unit_of_measurement: "ms" } },
+    },
+    {
         name: "buttons",
         selector: { select: { multiple: true, custom_value: true, reorder: true, options: BUTTON_OPTIONS } },
+    },
+    {
+        type: "grid",
+        name: "",
+        schema: [
+            { name: "header_left", selector: { select: { mode: "dropdown", custom_value: true, options: HEADER_OPTIONS } } },
+            { name: "header_right", selector: { select: { mode: "dropdown", custom_value: true, options: HEADER_OPTIONS } } },
+        ],
     },
     {
         name: "enable_double_click",
@@ -566,10 +755,13 @@ const DOUBLE_CLICK_FROM_FORM = { default: undefined, true: true, false: false };
 
 const LABELS = {
     remote_entity: "Apple TV remote",
-    media_player_entity: "Apple TV media player (for apps and now playing)",
+    media_player_entity: "Apple TV media player (for power, apps, skip buttons and now playing)",
     title: "Title (defaults to the media player name)",
     touchpad_height: "Touchpad height",
+    repeat_interval: "Hold-to-repeat speed (time between repeats, default 400ms)",
     buttons: "Buttons below the touchpad",
+    header_left: "Button left of the name",
+    header_right: "Button right of the name (default: power)",
     enable_double_click: "Double tap",
     enable_button_feedback: "Haptic feedback",
 };
@@ -602,7 +794,7 @@ class TVCardEditor extends LitElement {
                 @value-changed="${this._valueChanged}"
             ></ha-form>
             <p style="color: var(--secondary-text-color)">
-                Custom keys, apps and icons can be added in the YAML editor.
+                Custom keys, apps, icons and per-button entities can be set in the YAML editor.
             </p>
         `;
     }
