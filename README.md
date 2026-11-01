@@ -72,11 +72,15 @@ media_player_entity: media_player.living_room
 
 Built-in buttons are the Apple TV remote commands `up`, `down`, `left`, `right`, `select`, `menu`, `home`, `play_pause`, `skip_backward` and `skip_forward`, plus `power` and the apps `netflix`, `spotify` and `youtube` (these need `media_player_entity`). `power` toggles the media player, because the remote entity's own turn off only disconnects Home Assistant from the Apple TV.
 
+Holding `menu` (Back) for over half a second sends `top_menu`, which goes to the Apple TV main menu like holding Back on the Siri Remote.
+
 `custom_keys` and `custom_sources` add buttons you can list in `buttons`. Each needs an `icon` and one of:
 
 - `key`: a command for `remote.send_command` on the Apple TV
 - `source`: an app name for `media_player.select_source`
 - `service` (and optional `service_data`): any Home Assistant service
+
+Add `hold` with a remote command to send it on a long press instead, e.g. `hold: home_hold`. Setting `hold` on a built-in button (`custom_keys: { menu: { hold: home } }`) changes its long press.
 
 ```yaml
 type: custom:tv-card-v2

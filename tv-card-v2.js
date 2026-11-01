@@ -10,7 +10,7 @@ const KEYS = {
     "left": {"icon": "mdi:chevron-left"},
     "right": {"icon": "mdi:chevron-right"},
     "select": {"icon": "mdi:circle-outline"},
-    "menu": {"icon": "mdi:chevron-left"},
+    "menu": {"icon": "mdi:chevron-left", "hold": "top_menu"},  // holding Back goes to the main menu, as on the Siri Remote
     "home": {"icon": "mdi:television"},
     "play_pause": {"icon": "mdi:play-pause"},
     "skip_backward": {"icon": "mdi:rewind-10"},
@@ -42,6 +42,7 @@ const REPEAT_INTERVAL = 400;  // ms between repeats, overridable with repeat_int
 const TAP_MAX_DURATION = 500;
 const DOUBLE_TAP_DELAY = 200;    // how long a single tap waits when enable_double_click is true
 const DOUBLE_TAP_WINDOW = 400;   // max gap between the taps of a double tap
+const BUTTON_HOLD_DELAY = 600;   // ms a button is held before its `hold` command is sent
 
 const fireEvent = (node, type, detail) => {
     const event = new Event(type, { bubbles: false });
@@ -256,6 +257,33 @@ class TVCard extends LitElement {
         }
     }
 
+    // ---- buttons: a long press sends the button's `hold` command instead of its normal action ----
+
+    _onButtonDown(e, info) {
+        // Keep presses on buttons inside the touchpad from also counting as touchpad gestures.
+        e.stopPropagation();
+        this._buttonHeld = false;
+        clearTimeout(this._buttonHoldTimer);
+        if (!info.hold) return;
+        this._buttonHoldTimer = setTimeout(() => {
+            this._buttonHeld = true;
+            this._sendKey(info.hold, info.entity);
+            this._feedback("success");
+        }, BUTTON_HOLD_DELAY);
+    }
+
+    _onButtonUp() {
+        clearTimeout(this._buttonHoldTimer);
+    }
+
+    _onButtonClick(name) {
+        if (this._buttonHeld) {
+            this._buttonHeld = false;
+            return;
+        }
+        this._runAction(name);
+    }
+
     _onContextMenu(e) {
         e.preventDefault();
         // Long-presses on touch screens also raise contextmenu; only a real right click means back.
@@ -369,8 +397,12 @@ class TVCard extends LitElement {
                 class="${class_name}${off ? " off" : ""}"
                 title="${name}"
                 aria-label="${name}"
-                @pointerdown="${(e) => e.stopPropagation()}"
-                @click="${() => this._runAction(name)}">
+                @pointerdown="${(e) => this._onButtonDown(e, info)}"
+                @pointerup="${this._onButtonUp}"
+                @pointerleave="${this._onButtonUp}"
+                @pointercancel="${this._onButtonUp}"
+                @contextmenu="${(e) => e.preventDefault()}"
+                @click="${() => this._onButtonClick(name)}">
                 ${this._renderIcon(info)}
             </button>
         `;
@@ -642,23 +674,37 @@ class TVCard extends LitElement {
                     display: flex;
                     align-items: center;
                     justify-content: center;
-                    width: min(128px, 28%);
+                    width: min(112px, 25%);
                     aspect-ratio: 1;
                     padding: 0;
                     border-radius: 50%;
                     color: var(--tv-icon);
                     cursor: pointer;
-                    --mdc-icon-size: 40px;
+                    container-type: inline-size;
+                    --mdc-icon-size: 36px;
+                    user-select: none;
+                    -webkit-user-select: none;
+                    -webkit-touch-callout: none;
                     -webkit-tap-highlight-color: transparent;
                     transition: background 0.15s, transform 0.1s;
                 }
                 .button.large {
-                    width: min(160px, 36%);
-                    --mdc-icon-size: 52px;
+                    width: min(140px, 32%);
+                    --mdc-icon-size: 46px;
                 }
                 .button.small {
                     width: 56px;
                     --mdc-icon-size: 28px;
+                }
+                /* Icons are a fixed share of their button's width, so they shrink and grow with it. */
+                @supports (width: 1cqi) {
+                    .button,
+                    .button.large {
+                        --mdc-icon-size: 33cqi;
+                    }
+                    .button.small {
+                        --mdc-icon-size: 50cqi;
+                    }
                 }
                 .button.off {
                     color: var(--tv-secondary-text);
