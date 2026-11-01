@@ -5,13 +5,15 @@
 [![hacs_badge](https://img.shields.io/badge/HACS-Custom-orange.svg?style=for-the-badge)](https://github.com/hacs/integration)
 [![GitHub Activity][last-commit-shield]][commits]
 
-A Lovelace card for controlling an Apple TV, styled after the Apple TV Remote in the iPhone Control Center: one dark panel with a large touchpad and round buttons underneath.
+A Lovelace card for controlling an Apple TV, styled after the Apple TV Remote in the iPhone Control Center: the device name and power at the top, a large touchpad, and big round play/pause, back and Home buttons underneath.
 
 <img src="assets/screenshot-v2.png" alt="Apple TV Remote Card" width="300"/>
 
 - **Touchpad**: swipe to move, tap to select, hold to repeat, right-click or double-tap for back. Trackpad scrolling works too.
 - **Resizable**: drag the grip under the touchpad to change its height (remembered per device), double-click it to reset.
-- **Now playing**: shows the Apple TV's name and what's playing when a media player is set.
+- **Skip buttons on the touchpad**: skip back and forward 10 seconds appear on the touchpad while something is playing or paused.
+- **Per-button devices**: any button can control its own entity, e.g. power for a shared screen, while the rest of the remote stays on the Apple TV.
+- **Header**: the Apple TV's name (tap it for the media player's details), a power button, and what's playing.
 - **Visual editor** and haptic feedback in the Home Assistant app.
 
 Works with Home Assistant's [Apple TV integration](https://www.home-assistant.io/integrations/apple_tv/).
@@ -39,14 +41,17 @@ media_player_entity: media_player.living_room
 | Name | Type | Default | Description
 | ---- | ---- | ------- | -----------
 | `remote_entity` | string | **Required** | The Apple TV `remote` entity that receives key presses.
-| `media_player_entity` | string | | The Apple TV `media_player` entity, used for the header and app buttons.
-| `title` | string | media player name | Header text. Set to `""` to hide the name (now playing still shows).
+| `media_player_entity` | string | | The Apple TV `media_player` entity, used for power, app buttons, now playing and showing the skip buttons only while playing or paused (without it they always show).
+| `title` | string | media player name | Name shown in the header pill.
 | `touchpad_height` | number | `360` | Touchpad height in px (160–720). Changing it resets any size dragged on a device.
-| `buttons` | list | `[skip_backward, menu, skip_forward]` | Buttons below the touchpad, in order.
+| `buttons` | list | `[play_pause, menu, home]` | Buttons below the touchpad, in order. With three buttons the middle one is larger.
+| `header_left` | string | `none` | Button to the left of the name.
+| `header_right` | string | `power` | Button to the right of the name. Set to `none` to hide it.
 | `enable_double_click` | boolean | unset | Unset: every tap selects and a double tap also sends back. `true`: a double tap sends only back (single taps wait 200ms). `false`: no double tap.
 | `double_click_key` | string | `menu` | Command sent on double tap.
 | `enable_button_feedback` | boolean | `true` | Haptic feedback in the Home Assistant app.
 | `swipe_threshold` | number | `80` | Pixels of swipe per arrow key.
+| `repeat_interval` | number | `400` | Milliseconds between repeats when holding on the touchpad. Higher is slower.
 | `custom_keys` | object | | Extra buttons, see below.
 | `custom_sources` | object | | Extra app buttons, see below.
 | `custom_icons` | object | | Custom SVG icons, see below.
@@ -57,7 +62,7 @@ media_player_entity: media_player.living_room
 | ------- | -----
 | Swipe | `up` / `down` / `left` / `right`, one per `swipe_threshold` px
 | Tap | `select`
-| Hold still | `select`, repeated every 200ms after 700ms
+| Hold still | `select`, repeated every `repeat_interval` after 700ms
 | Swipe, then hold | that direction, repeated
 | Double tap | `double_click_key` (see `enable_double_click`)
 | Right-click | `menu`
@@ -65,7 +70,7 @@ media_player_entity: media_player.living_room
 
 ### Buttons
 
-Built-in buttons are the Apple TV remote commands `up`, `down`, `left`, `right`, `select`, `menu`, `skip_backward` and `skip_forward`, plus the apps `netflix`, `spotify` and `youtube` (these need `media_player_entity`).
+Built-in buttons are the Apple TV remote commands `up`, `down`, `left`, `right`, `select`, `menu`, `home`, `play_pause`, `skip_backward` and `skip_forward`, plus `power` and the apps `netflix`, `spotify` and `youtube` (these need `media_player_entity`). `power` toggles the media player, because the remote entity's own turn off only disconnects Home Assistant from the Apple TV.
 
 `custom_keys` and `custom_sources` add buttons you can list in `buttons`. Each needs an `icon` and one of:
 
@@ -78,22 +83,41 @@ type: custom:tv-card-v2
 remote_entity: remote.living_room
 media_player_entity: media_player.living_room
 buttons:
-  - menu
-  - home
+  - previous
   - play_pause
+  - next
   - disney
 custom_keys:
-  home:
-    key: home
-    icon: mdi:television
-  play_pause:
-    key: play_pause
-    icon: mdi:play-pause
+  previous:
+    key: previous
+    icon: mdi:skip-previous
+  next:
+    key: next
+    icon: mdi:skip-next
 custom_sources:
   disney:
     source: Disney+
     icon: mdi:alpha-d-circle
 ```
+
+### Per-button entities
+
+Every button controls the card's entities by default: remote commands go to `remote_entity`, and power and apps go to `media_player_entity`. Give a button an `entity` to point it somewhere else. Built-in buttons keep their icon and behaviour, so only the `entity` is needed:
+
+```yaml
+custom_keys:
+  power:
+    entity: switch.living_room_screen   # toggles the screen; the Apple TV stays on
+```
+
+What `entity` means depends on the button:
+
+| Button | `entity` should be | Called service
+| ------ | ------------------ | --------------
+| `power` | anything that can be turned on and off | `homeassistant.toggle`
+| `key` buttons | another `remote` entity | `remote.send_command`
+| `source` buttons | another `media_player` | `media_player.select_source`
+| `service` buttons | the service's target | the service, with `entity` as its target
 
 `custom_icons` maps an icon name to an SVG path, for icons that aren't in MDI:
 
@@ -110,7 +134,7 @@ custom_icons:
 
 The card is always dark, like the iPhone remote. Override these CSS variables (for example with [card-mod](https://github.com/thomasloven/lovelace-card-mod) or a theme) to change it:
 
-`--tv-card-background`, `--tv-card-surface`, `--tv-card-surface-active`, `--tv-card-icon-color`, `--tv-card-secondary-text-color`, `--tv-card-border-radius`
+`--tv-card-background`, `--tv-card-surface`, `--tv-card-surface-active`, `--tv-card-edge-color`, `--tv-card-icon-color`, `--tv-card-secondary-text-color`, `--tv-card-border-radius`
 
 ## Upgrading from v1
 
