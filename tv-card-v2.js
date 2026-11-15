@@ -35,8 +35,14 @@ const MIN_HEIGHT = 160;
 const MAX_HEIGHT = 720;
 
 const SWIPE_THRESHOLD = 80;   // px of finger travel per arrow key
-const WHEEL_THRESHOLD = 75;   // accumulated wheel delta that sends the arrow key
-const WHEEL_GESTURE_GAP = 150; // ms without wheel events that ends a scroll gesture
+const WHEEL_THRESHOLD = 75;        // wheel travel per arrow key at a leisurely pace
+const WHEEL_SPEED_BOOST = 0.5;     // a fast scroll counts for up to this much more travel
+const WHEEL_FAST_SPEED = 2;        // wheel travel per ms that earns the full boost
+const WHEEL_MIN_INTERVAL = 100;    // ms between arrows from scrolling, however fast it is
+const WHEEL_MAX_BANK = 3;          // arrows a fast scroll can queue up to send at that pace
+const WHEEL_GESTURE_GAP = 150;     // ms without wheel events that ends a scroll gesture
+const WHEEL_COAST_EVENTS = 3;      // shrinking deltas in a row that mark trackpad momentum
+const WHEEL_COAST_MIN = 15;        // ...when the run started from a delta at least this big
 const HOLD_DELAY = 700;       // ms held still before the current key starts repeating
 const REPEAT_INTERVAL = 400;  // ms between repeats, overridable with repeat_interval
 const TAP_MAX_DURATION = 500;
@@ -56,7 +62,13 @@ class TVCard extends LitElement {
         super();
         this._drag = null;
         this._resize = null;
-        this._wheel = { x: 0, y: 0 };
+        this._wheel = null;
+    }
+
+    disconnectedCallback() {
+        super.disconnectedCallback();
+        this._stopRepeat();
+        this._resetWheel();
     }
 
     static get properties() {
@@ -292,34 +304,135 @@ class TVCard extends LitElement {
         this._feedback();
     }
 
-    // One arrow per scroll gesture: once it is sent, the rest of the gesture
-    // (including trackpad momentum after the fingers lift) is ignored until the events pause.
+    // ---- scrolling: a trackpad or mouse wheel moves one arrow per WHEEL_THRESHOLD of travel ----
+    // Fast scrolls count for a little more travel, so they move further, and arrows they queue
+    // up go out at a steady pace. Scrolling on past HOLD_DELAY repeats the arrow like a held
+    // swipe. Trackpad momentum after the fingers lift shows up as a run of shrinking deltas
+    // and is ignored until the wheel goes quiet.
+
     _onWheel(e) {
         e.preventDefault();
-        clearTimeout(this._wheelReset);
-        this._wheelReset = setTimeout(() => {
-            this._wheel = { x: 0, y: 0 };
-            this._wheelLocked = false;
-        }, WHEEL_GESTURE_GAP);
-        if (this._wheelLocked) return;
+        const scale = e.deltaMode === 1 ? 16 : e.deltaMode === 2 ? 100 : 1;
+        const dx = e.deltaX * scale;
+        const dy = e.deltaY * scale;
+        const mag = Math.hypot(dx, dy);
+        if (!mag) return;
+        const now = performance.now();
 
-        const wheel = this._wheel;
-        wheel.x += e.deltaX;
-        wheel.y += e.deltaY;
-
-        let dir = null;
-        if (Math.abs(wheel.x) > Math.abs(wheel.y)) {
-            if (wheel.x >= WHEEL_THRESHOLD) dir = "left";
-            else if (wheel.x <= -WHEEL_THRESHOLD) dir = "right";
-        } else {
-            if (wheel.y >= WHEEL_THRESHOLD) dir = "up";
-            else if (wheel.y <= -WHEEL_THRESHOLD) dir = "down";
+        let w = this._wheel;
+        if (w && w.ended) {
+            this._resetWheel();
+            w = null;
         }
+        if (!w) {
+            w = this._wheel = { x: 0, y: 0, last: now, mag: 0, runStart: 0, shrinking: 0, coasting: false, dir: null, sent: -Infinity, repeating: false, ended: false };
+            this._startWheelHold();
+        }
+        clearTimeout(this._wheelEnd);
+        this._wheelEnd = setTimeout(() => this._endWheel(), WHEEL_GESTURE_GAP);
+
+        // A finger's deltas are noisy, so any increase ends a shrinking run; momentum never increases.
+        if (mag < w.mag) {
+            if (!w.shrinking) w.runStart = w.mag;
+            w.shrinking++;
+        } else if (mag > w.mag) {
+            w.shrinking = 0;
+            if (w.coasting) {
+                w.coasting = false;
+                this._startWheelHold();
+            }
+        }
+        const speed = w.mag ? mag / Math.max(now - w.last, 1) : 0;
+        w.last = now;
+        w.mag = mag;
+        if (w.shrinking >= WHEEL_COAST_EVENTS && w.runStart >= WHEEL_COAST_MIN && !w.coasting) {
+            w.coasting = true;
+            this._stopWheelRepeat();
+        }
+        if (w.coasting) return;
+
+        const boost = 1 + WHEEL_SPEED_BOOST * Math.min(1, speed / WHEEL_FAST_SPEED);
+        w.x += dx * boost;
+        w.y += dy * boost;
+
+        // Drift on the other axis is dropped so a long scroll never turns sideways.
+        const limit = WHEEL_MAX_BANK * WHEEL_THRESHOLD;
+        if (Math.abs(w.x) > Math.abs(w.y)) {
+            w.x = Math.max(-limit, Math.min(limit, w.x));
+            w.y = 0;
+        } else {
+            w.y = Math.max(-limit, Math.min(limit, w.y));
+            w.x = 0;
+        }
+        this._wheelTick(w, false);
+    }
+
+    // Sends one arrow if enough travel has built up (or always, for a repeat), then queues
+    // the next one if more is banked.
+    _wheelTick(w, repeat) {
+        const horizontal = Math.abs(w.x) > Math.abs(w.y);
+        const travel = horizontal ? w.x : w.y;
+        if (!repeat && Math.abs(travel) < WHEEL_THRESHOLD) return;
+        const dir = travel ? (horizontal ? (travel > 0 ? "left" : "right") : (travel > 0 ? "up" : "down")) : w.dir;
         if (!dir) return;
 
-        this._wheelLocked = true;
+        const now = performance.now();
+        const wait = w.sent + WHEEL_MIN_INTERVAL - now;
+        if (wait > 0) {
+            if (!this._wheelDrain) this._wheelDrain = setTimeout(() => {
+                this._wheelDrain = null;
+                this._wheelTick(w, false);
+            }, wait);
+            return;
+        }
+
+        const remainder = Math.sign(travel) * Math.max(0, Math.abs(travel) - WHEEL_THRESHOLD);
+        w.x = horizontal ? remainder : 0;
+        w.y = horizontal ? 0 : remainder;
+        w.dir = dir;
+        w.sent = now;
         this._sendKey(dir);
         this._feedback("selection");
+
+        if (Math.abs(remainder) >= WHEEL_THRESHOLD) this._wheelTick(w, false);
+        else if (w.ended) this._resetWheel();
+        if (w.repeating && !repeat) this._startWheelRepeat();
+    }
+
+    // Scrolling on for HOLD_DELAY starts repeating, like a swipe that is then held. Each
+    // arrow the travel itself sends pushes the next repeat back a full interval.
+    _startWheelHold() {
+        this._stopWheelRepeat();
+        this._wheelHold = setTimeout(() => this._startWheelRepeat(), HOLD_DELAY);
+    }
+
+    _startWheelRepeat() {
+        this._stopWheelRepeat();
+        const w = this._wheel;
+        if (!w) return;
+        w.repeating = true;
+        this._wheelRepeat = setInterval(() => this._wheelTick(w, true), this._config.repeat_interval || REPEAT_INTERVAL);
+    }
+
+    _stopWheelRepeat() {
+        clearTimeout(this._wheelHold);
+        clearInterval(this._wheelRepeat);
+        if (this._wheel) this._wheel.repeating = false;
+    }
+
+    // The wheel has gone quiet; arrows a fast scroll banked still go out before the gesture is dropped.
+    _endWheel() {
+        this._stopWheelRepeat();
+        if (this._wheelDrain) this._wheel.ended = true;
+        else this._resetWheel();
+    }
+
+    _resetWheel() {
+        clearTimeout(this._wheelEnd);
+        clearTimeout(this._wheelDrain);
+        this._wheelDrain = null;
+        this._stopWheelRepeat();
+        this._wheel = null;
     }
 
     _placeDot(e, active) {

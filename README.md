@@ -66,7 +66,7 @@ media_player_entity: media_player.living_room
 | Swipe, then hold | that direction, repeated
 | Double tap | `double_click_key` (see `enable_double_click`)
 | Right-click | `menu`
-| Scroll (trackpad / mouse wheel) | one arrow per scroll gesture
+| Scroll (trackpad / mouse wheel) | an arrow per 75 units of travel, a little less when scrolling fast; scrolling on past 700ms repeats like a held swipe
 
 ### Buttons
 
