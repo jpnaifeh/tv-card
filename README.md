@@ -50,7 +50,7 @@ media_player_entity: media_player.living_room
 | `enable_double_click` | boolean | unset | Unset: every tap selects and a double tap also sends back. `true`: a double tap sends only back (single taps wait 200ms). `false`: no double tap.
 | `double_click_key` | string | `menu` | Command sent on double tap.
 | `enable_button_feedback` | boolean | `true` | Haptic feedback in the Home Assistant app.
-| `enable_scroll_speed` | boolean | `true` | Fast trackpad or mouse wheel scrolls count for up to 50% more travel. `false` counts distance only.
+| `enable_scroll_speed` | boolean | `true` | Trackpad and mouse wheel travel counts for less the faster it comes, so a quick flick is one step while a slow scroll keeps stepping. `false` counts distance only.
 | `swipe_threshold` | number | `80` | Pixels of swipe per arrow key.
 | `repeat_interval` | number | `400` | Milliseconds between repeats when holding on the touchpad. Higher is slower.
 | `custom_keys` | object | | Extra buttons, see below.
@@ -67,7 +67,7 @@ media_player_entity: media_player.living_room
 | Swipe, then hold | that direction, repeated
 | Double tap | `double_click_key` (see `enable_double_click`)
 | Right-click | `menu`
-| Scroll (trackpad / mouse wheel) | an arrow per 75 units of travel, a little less when scrolling fast (see `enable_scroll_speed`); scrolling on past 700ms repeats like a held swipe
+| Scroll (trackpad / mouse wheel) | an arrow per 40 units of slow travel; a quick flick is one step (see `enable_scroll_speed`); scrolling on past 700ms repeats like a held swipe
 
 ### Buttons
 
