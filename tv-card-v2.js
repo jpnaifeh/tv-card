@@ -131,6 +131,7 @@ class TVCard extends LitElement {
     _builtin(name) {
         if (KEYS[name]) return { key: name, ...KEYS[name] };
         if (name === "power") return { power: true, icon: "mdi:power" };
+        if (name === "previous_page") return { previous_page: true, icon: "mdi:arrow-left" };
         return SOURCES[name];
     }
 
@@ -140,7 +141,7 @@ class TVCard extends LitElement {
         const custom = (this._config.custom_keys || {})[name] || (this._config.custom_sources || {})[name];
         const builtin = this._builtin(name);
         if (!custom) return builtin;
-        if (["key", "source", "service"].some((action) => action in custom)) {
+        if (["key", "source", "service", "navigation_path"].some((action) => action in custom)) {
             return { icon: builtin && builtin.icon, ...custom };
         }
         return builtin && { ...builtin, ...custom };
@@ -174,8 +175,25 @@ class TVCard extends LitElement {
         } else if (info.service) {
             const [domain, service] = info.service.split(".", 2);
             this._hass.callService(domain, service, info.service_data, info.entity ? { entity_id: info.entity } : undefined);
+        } else if (info.navigation_path) {
+            this._navigate(info.navigation_path);
+        } else if (info.previous_page) {
+            this._previousPage();
         }
         this._feedback();
+    }
+
+    _navigate(path) {
+        history.pushState(null, "", path);
+        fireEvent(window, "location-changed", { replace: false });
+    }
+
+    // Like a browser back button. A dashboard that links here with ?area=<view> gets that
+    // view back (/lovelace/<view>) even when the remote was opened directly.
+    _previousPage() {
+        const area = new URLSearchParams(window.location.search).get("area");
+        if (area) this._navigate(`/lovelace/${area}`);
+        else history.back();
     }
 
     // ---- touchpad: swipes become arrow keys, taps become select ----
@@ -832,6 +850,7 @@ const BUTTON_OPTIONS = [
     { value: "menu", label: "Back" },
     { value: "home", label: "Home (TV)" },
     { value: "power", label: "Power" },
+    { value: "previous_page", label: "Previous page (dashboard back)" },
     { value: "skip_backward", label: "Skip back 10s" },
     { value: "skip_forward", label: "Skip forward 10s" },
     { value: "select", label: "Select" },

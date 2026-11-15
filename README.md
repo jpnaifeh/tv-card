@@ -71,7 +71,9 @@ media_player_entity: media_player.living_room
 
 ### Buttons
 
-Built-in buttons are the Apple TV remote commands `up`, `down`, `left`, `right`, `select`, `menu`, `home`, `play_pause`, `skip_backward` and `skip_forward`, plus `power` and the apps `netflix`, `spotify` and `youtube` (these need `media_player_entity`). `power` toggles the media player, because the remote entity's own turn off only disconnects Home Assistant from the Apple TV.
+Built-in buttons are the Apple TV remote commands `up`, `down`, `left`, `right`, `select`, `menu`, `home`, `play_pause`, `skip_backward` and `skip_forward`, plus `power`, `previous_page` and the apps `netflix`, `spotify` and `youtube` (these need `media_player_entity`). `power` toggles the media player, because the remote entity's own turn off only disconnects Home Assistant from the Apple TV.
+
+`previous_page` goes back to the previous dashboard page, like a browser back button. If the remote's page was opened with `?area=<view>` in the URL (for example a link to `/lovelace/remote?area=kitchen`), it goes to `/lovelace/<view>` instead, which also works when the remote was opened directly or in a new tab.
 
 Holding `menu` (Back) for over half a second sends `top_menu`, which goes to the Apple TV main menu like holding Back on the Siri Remote.
 
@@ -80,6 +82,7 @@ Holding `menu` (Back) for over half a second sends `top_menu`, which goes to the
 - `key`: a command for `remote.send_command` on the Apple TV
 - `source`: an app name for `media_player.select_source`
 - `service` (and optional `service_data`): any Home Assistant service
+- `navigation_path`: a dashboard path to open, e.g. `/lovelace/0`
 
 Add `hold` with a remote command to send it on a long press instead, e.g. `hold: home_hold`. Setting `hold` on a built-in button (`custom_keys: { menu: { hold: home } }`) changes its long press.
 
