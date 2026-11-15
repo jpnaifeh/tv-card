@@ -36,7 +36,7 @@ const MAX_HEIGHT = 720;
 
 const SWIPE_THRESHOLD = 80;   // px of finger travel per arrow key
 const WHEEL_THRESHOLD = 75;        // wheel travel per arrow key at a leisurely pace
-const WHEEL_SPEED_BOOST = 0.5;     // a fast scroll counts for up to this much more travel
+const WHEEL_SPEED_BOOST = 0.5;     // a fast scroll counts for up to this much more travel (enable_scroll_speed: false turns it off)
 const WHEEL_FAST_SPEED = 2;        // wheel travel per ms that earns the full boost
 const WHEEL_MIN_INTERVAL = 100;    // ms between arrows from scrolling, however fast it is
 const WHEEL_MAX_BANK = 3;          // arrows a fast scroll can queue up to send at that pace
@@ -351,7 +351,9 @@ class TVCard extends LitElement {
         }
         if (w.coasting) return;
 
-        const boost = 1 + WHEEL_SPEED_BOOST * Math.min(1, speed / WHEEL_FAST_SPEED);
+        const boost = this._config.enable_scroll_speed === false
+            ? 1
+            : 1 + WHEEL_SPEED_BOOST * Math.min(1, speed / WHEEL_FAST_SPEED);
         w.x += dx * boost;
         w.y += dy * boost;
 
@@ -905,6 +907,7 @@ const SCHEMA = [
             },
         },
     },
+    { name: "enable_scroll_speed", selector: { boolean: {} } },
     { name: "enable_button_feedback", selector: { boolean: {} } },
 ];
 
@@ -922,6 +925,7 @@ const LABELS = {
     header_left: "Button left of the name",
     header_right: "Button right of the name (default: power)",
     enable_double_click: "Double tap",
+    enable_scroll_speed: "Fast scrolling moves further (trackpad / mouse wheel)",
     enable_button_feedback: "Haptic feedback",
 };
 
@@ -940,6 +944,7 @@ class TVCardEditor extends LitElement {
         }
         const data = {
             enable_button_feedback: true,
+            enable_scroll_speed: true,
             ...this._config,
             enable_double_click: DOUBLE_CLICK_TO_FORM[this._config.enable_double_click],
         };
@@ -965,6 +970,7 @@ class TVCardEditor extends LitElement {
             if (config[key] === "" || config[key] === undefined) delete config[key];
         });
         if (config.enable_button_feedback === true) delete config.enable_button_feedback;
+        if (config.enable_scroll_speed === true) delete config.enable_scroll_speed;
 
         this.dispatchEvent(new CustomEvent("config-changed", {
             detail: { config },
